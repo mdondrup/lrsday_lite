@@ -33,7 +33,7 @@ onstart:
     print ("Starting " + WF_NAME)
    
   
-    shell ('send_message.py "Admixture pipeline started at $(date)"') # comment out this line if you don't have a messenger script
+
 
 
 rule all:
@@ -61,7 +61,7 @@ rule all:
             
 
 rule setup:
-    input: ["LRSDAY", ".repmasker_setup", ".reannotate_setup", "tools/MFannot", "tools/MFannot_data", "tools/REannotate"]
+    input: ["LRSDAY", ".repmasker_setup", ".reannotate_setup", "tools/MFannot", "tools/MFannot_data", "tools/REannotate_LongQueryName"]
     output: ".setup_done"
     shell:
         r"""
