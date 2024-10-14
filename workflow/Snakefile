@@ -189,8 +189,9 @@ download () {{
 # dependencies for MFannot
 
 ERPIN_VERSION="5.5.4" # 
-ERPIN_DOWNLOAD_URL="http://rna.igmors.u-psud.fr/download/Erpin/erpin${{ERPIN_VERSION}}.serv.tar.gz"
-
+#ERPIN_DOWNLOAD_URL="http://rna.igmors.u-psud.fr/download/Erpin/erpin${{ERPIN_VERSION}}.serv.tar.gz"
+ERPIN_DOWNLOAD_URL="http://rssf.i2bc.paris-saclay.fr/download/Erpin/erpin${{ERPIN_VERSION}}.serv.tar.gz"
+        
 echo ""
 echo " Installing erpin ..."
     cd $build_dir    
