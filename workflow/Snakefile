@@ -1,0 +1,436 @@
+### Annotation using LRSDAY-like scripts
+
+from snakemake.utils import min_version
+min_version("8.0")
+
+# PREFIX="CPG_1a" # Prefix used throughout the scripts
+configfile: "config/config.yaml"
+PREFIX=config["prefix"]
+
+include: "rules/centromer_annotation.smk"
+include: "rules/nuclear_gene_annotation.smk"
+include: "rules/mt_gene_annotation.smk"
+include: "rules/TE_annotation.smk"
+include: "rules/core_X_element_annotation.smk"
+include: "rules/Y_prime_element_annotation.smk"
+include: "rules/gene_orthology_identification.smk"
+include: "rules/annotation_integration.smk"
+
+WF_NAME="LRSDAY-lite annotation workflow."
+
+print("-----------------------------------------\n LRSDAY-lite annotation workflow. Based on the the LRSDAY pipeline. \n-----------------------------------------")
+
+print ("Expecting input assembly file in:\n - 07.Supervised_Final_Assembly/"+config["prefix"]+".assembly.final.fa\n")
+
+onsuccess:
+    print(WF_NAME+" completed.")
+  
+onerror:
+    print("An error occurred, see the log")
+    
+onstart:    
+    print ("----------------------------------------------------------------------------")
+    print ("Starting " + WF_NAME)
+   
+  
+    shell ('send_message.py "Admixture pipeline started at $(date)"') # comment out this line if you don't have a messenger script
+
+
+rule all:
+    input: setup=".setup_done",
+           centromere= "08.Centromere_Annotation/"+config["prefix"]+".nuclear_genome.centromere.gff3",
+           gff3_nucl="09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.gff3",
+           gff3_mt= "10.Mitochondrial_Gene_Annotation/"+config["prefix"]+".mitochondrial_genome.gff3",
+           gff3_te="11.TE_Annotation/"+config["prefix"]+".nuclear_genome.TE.gff3",
+           gff3_X="12.Core_X_Element_Annotation/"+config["prefix"]+".nuclear_genome.X_element.gff3",
+           gff3_Y="13.Y_Prime_Element_Annotation/"+config["prefix"]+".nuclear_genome.Y_prime_element.gff3",
+            nuc_ortho_tsv="14.Gene_Orthology_Identification/"+prefix+".nuclear_genome.proteinortho.tsv",
+            mit_ortho_tsv="14.Gene_Orthology_Identification/"+prefix+".mitochondrial_genome.proteinortho.tsv",
+            nuc_final_fa="15.Annotation_Integration/"+prefix+".nuclear_genome.tidy.fa",
+            nuc_final_gff3="15.Annotation_Integration/"+prefix+".nuclear_genome.tidy.gff3",
+            nuc_final_cds_fa="15.Annotation_Integration/"+prefix+".nuclear_genome.tidy.cds.fa",
+            mit_final_fa="15.Annotation_Integration/"+prefix+".mitochondrial_genome.tidy.fa",
+            mit_final_gff3="15.Annotation_Integration/"+prefix+".mitochondrial_genome.tidy.gff3",
+            mit_final_cds_fa="15.Annotation_Integration/"+prefix+".mitochondrial_genome.tidy.cds.fa",
+            
+    run:
+        r"""
+        print("Annotation process finished")
+        print("Final annotation files are found in 15.Annotation_Integration/")
+        """
+            
+
+rule setup:
+    input: ["LRSDAY", ".repmasker_setup", ".reannotate_setup", "tools/MFannot", "tools/MFannot_data", "tools/REannotate"]
+    output: ".setup_done"
+    shell:
+        r"""
+        mkdir -p \
+07.Supervised_Final_Assembly \
+08.Centromere_Annotation \
+09.Nuclear_Gene_Annotation \
+10.Mitochondrial_Gene_Annotation \
+11.TE_Annotation \
+12.Core_X_Element_Annotation \
+13.Y_Prime_Element_Annotation \
+14.Gene_Orthology_Identification \
+15.Annotation_Integration \
+logs
+
+        touch .setup_done
+    
+        """           
+           
+
+## create the directory structure           
+## clone the repo for perl scripts
+
+rule clone_LRSDAY:
+    output: directory("LRSDAY")
+    shell:
+        r"""
+        git clone https://github.com/mdondrup/LRSDAY.git
+        cd LRSDAY/
+        git checkout snakemake_wf
+        cd data/
+        gunzip *.gz
+        """
+        
+rule repeat_masker_setup:
+    conda: "envs/gene_annotation.yaml" # need to set up the environment already
+    output: [directory("RMRB"),".repmasker_setup"]
+    params: REPBASE_VERSION="20181026",
+            REPBASE_DOWNLOAD_URL="https://github.com/yjx1217/RMRB.git"
+    shell:
+        r"""
+
+
+        WCD=$(pwd)
+        git clone {params.REPBASE_DOWNLOAD_URL}
+
+        cd $CONDA_PREFIX/share/RepeatMasker/ 
+        mv $WCD/RMRB/RepBaseRepeatMaskerEdition-{params.REPBASE_VERSION}.tar.gz .
+        tar xzf RepBaseRepeatMaskerEdition-{params.REPBASE_VERSION}.tar.gz
+        rm RepBaseRepeatMaskerEdition-{params.REPBASE_VERSION}.tar.gz
+        perl ./configure
+        cd $WCD
+        touch .repmasker_setup
+        
+        """
+
+rule reannotate_setup:
+    conda: "envs/gene_annotation.yaml" # need to set up the environment already
+    output: [directory("tools/REannotate_LongQueryName"),".reannotate_setup"]
+    params: REANNOTATE_GITHUB_COMMIT_VERSION="snakemake_wf",
+            REANNOTATE_DOWNLOAD_URL="https://github.com/mdondrup/REannotate_LongQueryName"
+    shell:
+        r"""
+        build_dir=$(pwd)/tools # all tools will be installed in the root dir
+        mkdir -p $build_dir
+        WD=$(pwd)
+        reannotate_dir="$build_dir/REannotate_LongQueryName"
+echo ""
+echo " Installing REannotate ..."
+
+    cd $build_dir
+    echo "Download REannotate"
+    git clone {params.REANNOTATE_DOWNLOAD_URL}
+    cd REannotate_LongQueryName 
+    git checkout -f -q {params.REANNOTATE_GITHUB_COMMIT_VERSION}
+    chmod 755 REannotate_longname
+    ln -s REannotate_longname REannotate
+    cd $build_dir
+    echo export reannotate_dir=$reannotate_dir > reannotate.env
+    cd $WD
+    touch .reannotate_setup    
+        
+        """
+            
+
+        
+### has a lot of dependencies that cannot be installed via conda
+# - erpin
+# - PirObject
+# - internal BFL tools
+
+        
+rule MFannot_setup:
+    conda: "envs/mfannot.yaml"
+    output: mfannot=directory("tools/MFannot"),
+            mfannot_data=directory("tools/MFannot_data"),
+            erpin=directory("tools/erpin.serv"),
+            pirobj=directory("tools/PirObject"),
+            pirmod=directory("tools/PirModels"),
+            flip=directory("tools/Flip"),
+            umac=directory("tools/Umac"),
+            hmmsearchwc=directory("tools/HMMsearchWC"),
+            rnafinder=directory("tools/RNAfinder"),
+            mf2=directory("tools/Mf2sqn"),
+            grab_fasta=directory("tools/grab-fasta"),
+            blastmat=directory("tools/blast/matrices")
+
+
+    threads:20
+
+    shell:
+        r"""
+        export build_dir=$(pwd)/tools # all tools will be installed in the root dir
+        mkdir -p $build_dir
+        WD=$(pwd)
+        ##  copied from LRSDAY setup 
+download () {{
+  url=$1
+  download_location=$2
+  echo "Downloading $url to $download_location"
+  wget -c --no-check-certificate $url -O $download_location
+}}
+
+        
+# dependencies for MFannot
+
+ERPIN_VERSION="5.5.4" # 
+ERPIN_DOWNLOAD_URL="http://rna.igmors.u-psud.fr/download/Erpin/erpin${{ERPIN_VERSION}}.serv.tar.gz"
+
+echo ""
+echo " Installing erpin ..."
+    cd $build_dir    
+    echo "Download ERPIN"
+    download $ERPIN_DOWNLOAD_URL "erpin_v${{ERPIN_VERSION}}.tar.gz"
+    tar xvzf erpin_v${{ERPIN_VERSION}}.tar.gz
+    cd erpin${{ERPIN_VERSION}}.serv
+    make -j {threads}
+    cd $build_dir
+    rm erpin_v${{ERPIN_VERSION}}.tar.gz
+    mv erpin${{ERPIN_VERSION}}.serv/ erpin.serv/
+
+cd $WD
+echo export erpin_dir=$(realpath {output.erpin}) > $build_dir/bash.env
+
+        
+PIROBJECT_VERSION="1.19" #
+PIROBJECT_DOWNLOAD_URL="https://github.com/prioux/PirObject/archive/v${{PIROBJECT_VERSION}}.tar.gz"
+PIRMODELS_GITHUB_COMMIT_VERSION="6b223ec" # committed on 2016.08.30
+PIRMODELS_DOWNLOAD_URL="https://github.com/BFL-lab/PirModels.git"
+
+
+echo ""
+echo " Installing PirObject ..."
+
+    cd $build_dir
+    echo "Download PirObject"
+    download $PIROBJECT_DOWNLOAD_URL "pirobject_v${{PIROBJECT_VERSION}}.tar.gz"
+    tar xvzf pirobject_v${{PIROBJECT_VERSION}}.tar.gz
+    cd PirObject-${{PIROBJECT_VERSION}}
+    ln -s ./lib/PirObject.pm .
+    cd $build_dir
+    rm pirobject_v${{PIROBJECT_VERSION}}.tar.gz
+    mv PirObject-${{PIROBJECT_VERSION}}/ PirObject/
+cd $WD      
+echo export pirobject_dir=$(realpath {output.pirobj}) >> $build_dir/bash.env
+pirobject_dir=$(realpath {output.pirobj})
+
+        
+PIRMODELS_GITHUB_COMMIT_VERSION="6b223ec" # committed on 2016.08.30
+PIRMODELS_DOWNLOAD_URL="https://github.com/BFL-lab/PirModels.git"
+        
+pirmodels_dir="$pirobject_dir/PirModels"
+echo ""
+echo " Installing PirModels ..."
+
+    cd $build_dir
+
+    echo "Download PirModels"
+    git clone $PIRMODELS_DOWNLOAD_URL
+    cd PirModels
+    git checkout -f -q $PIRMODELS_GITHUB_COMMIT_VERSION
+    cd ..
+    cp -r PirModels $pirobject_dir
+
+   
+cd $WD      
+echo export pirmodels_dir=$pirmodels_dir >> $build_dir/bash.env
+
+
+        
+
+FLIP_GITHUB_COMMIT_VERSION="00a57cb" # committed on 2016.04.07
+FLIP_DOWNLOAD_URL="https://github.com/BFL-lab/Flip.git"
+
+echo ""
+echo " Installing Flip ..."
+    cd $build_dir
+    echo "Download Flip"
+    git clone $FLIP_DOWNLOAD_URL
+    cd Flip
+    git checkout -f -q $FLIP_GITHUB_COMMIT_VERSION
+    cd src
+    make -j {threads}
+    cp flip ./../
+    cd $WD
+        
+echo export flip_dir=$(realpath {output.flip}) >> $build_dir/bash.env
+              
+        
+
+UMAC_GITHUB_COMMIT_VERSION="cae618e" # committed on 2016.08.30
+UMAC_DOWNLOAD_URL="https://github.com/BFL-lab/Umac.git"
+
+
+        
+echo ""
+echo " Installing Umac ..."
+    cd $build_dir
+    echo "Download Umac"
+    git clone $UMAC_DOWNLOAD_URL
+    cd Umac
+    git checkout -f -q $UMAC_GITHUB_COMMIT_VERSION
+cd $WD
+echo export umac_dir=$(realpath {output.umac}) >> $build_dir/bash.env
+        
+
+HMMSEARCHWC_GITHUB_COMMIT_VERSION="9e3b461" # committed on 2016.11.05
+HMMSEARCHWC_DOWNLOAD_URL="https://github.com/BFL-lab/HMMsearchWC.git"
+
+
+echo ""
+echo " Installing HMMsearchWC ..."
+    cd $build_dir
+    echo "Download HMMsearchWC"
+    git clone $HMMSEARCHWC_DOWNLOAD_URL
+    cd HMMsearchWC
+    git checkout -f -q $HMMSEARCHWC_GITHUB_COMMIT_VERSION
+    cd $build_dir  
+cd $WD
+echo export hmmsearchwc_dir=$(realpath {output.hmmsearchwc}) >> $build_dir/bash.env
+       
+
+RNAFINDER_GITHUB_COMMIT_VERSION="snakemake_wf" # committed on 2024.07.05 by @mdondrup
+RNAFINDER_DOWNLOAD_URL="https://github.com/mdondrup/RNAfinder.git"
+
+
+echo ""
+echo " Installing RNAfinder ..."
+
+    cd $build_dir
+    echo "Download RNAfinder"
+    git clone $RNAFINDER_DOWNLOAD_URL
+    cd RNAfinder
+    git checkout -f -q $RNAFINDER_GITHUB_COMMIT_VERSION
+    cp DOT_RNAfinder.cfg .RNAfinder.cfg
+    cd $WD
+        
+echo export rnafinder_dir=$(realpath {output.rnafinder}) >> $build_dir/bash.env
+        
+
+MF2SQN_GITHUB_COMMIT_VERSION="6faf9f4" # committed on 2016.12.07
+MF2SQN_DOWNLOAD_URL="https://github.com/BFL-lab/Mf2sqn.git"
+
+
+echo ""
+echo " Installing Mf2sqn ..."
+
+    cd $build_dir
+   
+    echo "Download Mf2sqn"
+    git clone $MF2SQN_DOWNLOAD_URL
+    cd Mf2sqn
+    git checkout -f -q $MF2SQN_GITHUB_COMMIT_VERSION
+    cd $WD
+        
+echo export mf2sqn_dir=$(realpath {output.mf2}) >> $build_dir/bash.env
+
+
+        
+GRAB_FASTA_GITHUB_COMMIT_VERSION="accd32d" # committed on 2017.02.14
+GRAB_FASTA_DOWNLOAD_URL="https://github.com/BFL-lab/grab-fasta.git"
+
+
+echo ""
+echo " Installing grab-fasta ..."
+
+    cd $build_dir
+ 
+    echo "Download grab-fasta"
+    git clone $GRAB_FASTA_DOWNLOAD_URL
+    cd grab-fasta
+    git checkout -f -q $GRAB_FASTA_GITHUB_COMMIT_VERSION
+
+    cd $WD
+        
+echo export grab_fasta_dir=$(realpath {output.grab_fasta}) >> $build_dir/bash.env
+
+blast_matrices_dir="$build_dir/blast/matrices"
+echo ""
+echo "[ Installing ncbi-blast+ matrices ..."        
+
+    cd $build_dir
+
+    mkdir -p blast/matrices
+    cd blast/matrices
+    wget -c ftp://ftp.ncbi.nlm.nih.gov/blast/matrices/*
+    cd $build_dir        
+
+cd $WD        
+echo export blast_matrices_dir=$(realpath {output.blastmat}) >> $build_dir/bash.env
+        
+        
+# for MFannot
+MFANNOT_DATA_GITHUB_COMMIT_VERSION="b039ac5" # committed on 2016.12.07
+MFANNOT_VERSION="1.35" #
+MFANNOT_GITHUB_COMMIT_VERSION="snakemake_wf" # committed on 2024.07.05 by @mdondrup
+MFANNOT_DATA_DOWNLOAD_URL="https://github.com/BFL-lab/MFannot_data.git"
+MFANNOT_DOWNLOAD_URL="https://github.com/mdondrup/MFannot.git"
+
+###
+
+echo ""
+echo " Installing MFannot_data ..."
+    cd $build_dir
+    echo "Download MFannot_data"
+    git clone $MFANNOT_DATA_DOWNLOAD_URL
+    cd MFannot_data
+    git checkout -f -q $MFANNOT_DATA_GITHUB_COMMIT_VERSION
+    cd $WD
+        
+echo export mfannot_data_dir=$(realpath {output.mfannot_data}) >> $build_dir/bash.env
+
+
+        
+
+# --------------- MFannot ------------------
+
+echo ""
+echo " Installing MFannot ..."
+    cd $build_dir
+    echo "Download MFannot"
+    git clone $MFANNOT_DOWNLOAD_URL
+    cd MFannot
+    git checkout -f -q $MFANNOT_GITHUB_COMMIT_VERSION
+    cd $WD  
+echo export mfannot_dir=$(realpath {output.mfannot}) >> $build_dir/bash.env        
+
+cd $build_dir
+
+
+        """
+
+
+                
+rule clean:
+    message: "installed tools will not be reomved"
+    shell:
+        r"""
+rm -rf 08.Centromere_Annotation/* \
+        09.Nuclear_Gene_Annotation/* \
+        10.Mitochondrial_Gene_Annotation/* \
+        11.TE_Annotation/* \
+        12.Core_X_Element_Annotation/* \
+        13.Y_Prime_Element_Annotation/* \
+        14.Gene_Orthology_Identification/* \
+        15.Annotation_Integration/*
+
+        """
+    
+
+           
+
