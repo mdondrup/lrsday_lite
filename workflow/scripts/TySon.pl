@@ -18,13 +18,13 @@ my $maxInternalDist = 100;
 ## Maximum distance between dissociated Ty fragments to be  joined
 my $minFractionComplete = 0.9; ## Minimum fraction of canonical length to be classified a s complete
 
-my %cannonicalLengths = ( TY1 => 5200,
-			  TY2 => 5200,
-			  TY3 => 5200,
-			  TY3_1p => 5200,
-			  TY4 => 5200,
-			  TY5 => 5200,
-			  TSU4 => 5200
+my %cannonicalLengths = ( 'TY1' => 5924,
+			  'TY2' => 5959,
+			  'TY3' => 5351,
+			  'TY3_1p' => 5360,
+			  'TY4' => 6223,
+			  'TY5' => 5349,
+			  'TSU4' => 5997
 			);  
 
 
@@ -35,7 +35,7 @@ while( my $r = $parser->next_result_2 ) {
     my ($div) = $r->feature1->get_tag_values("perc_div");
     if (ref $r && $div<= $maxDiv) {
 	push @Ty, $r;
-
+## print the parsed input
 	print STDERR (join "\t", ($r->seq_id(),
 		      "perc_div:",($r->feature1->get_tag_values("perc_div")),
 		      $r->start,
@@ -47,17 +47,16 @@ while( my $r = $parser->next_result_2 ) {
 		      $r->hseq_id, ## the TY type
 		      $r->primary_tag(),
 		      $r->feature1->get_tag_values("myid"),
-		      $r->feature1->get_tag_values("is_overlap"),
-		      
-		     
-		      
+		      $r->feature1->get_tag_values("is_overlap"),		      		     
 	      ), "\n") if ($debug > 1);
     }
 }
 
+### END imported the input
+
 if (@Ty < 1) {
     ### That is not an error per se
-    carp "Zero elements after filtering\n";     
+    carp "Zero elements after filtering for percent divergence\n";     
     exit 0;
 }
 print STDERR  scalar(@Ty)." elements after filtering\n" if $debug;
@@ -75,18 +74,27 @@ sub getTyClass {
     ### internal type takes precedence
     ### If there are different types in one cluster
     ### the returned array has length > 1;
-    my @c = map {$_->hseq_id =~ /^(T.*)-I$/i; us($1)} @{Ty[@_]};
-    return unique(@c) if @c > 0;
-    @c = map {$_->hseq_id =~ /^(T.*)-LTR$/i; uc($1)} @{Ty[@_]};
-    return unique(@c) if @c > 0;
+    my @c = map {$_->hseq_id =~ /^(T.*)-I$/i; uc($1) if $1} @{Ty[@_]};
+    return (unique(@c, @c)) if @c > 0;
+    @c = map {$_->hseq_id =~ /^(T.*)-LTR$/i;  uc($1) if $1} @{Ty[@_]};
+    return (unique(@c, @c)) if @c > 0;
+    #confess "unknown Ty class";  
+    return ();
 }
 
 sub isComplete {
+    
+    @_ = grep {defined $_} @_; 
     return 0 unless @_ > 2;
-    my $c = (getTyClass(@_))[0]; 
-    my $l = (shift) -> start;
-    my $r = (pop) -> end;    
-    return (($r - $l) >= (cannonicalLength{$c} * $minFractionComplete));
+    ## check if both ends are LTRs;
+    return 0 unless (checkType($_[0]) eq 'soloLTR' && checkType($_[@_-1]) eq 'soloLTR' );
+    my @ar = grep {$_} getTyClass(@_);
+    my $c = join '/', @ar;
+    #print STDERR "----$c";
+    my $l = @Ty[(shift)] -> start;
+    my $r = @Ty[(pop)] -> end;
+    confess "unknown Ty type $c" unless exists $cannonicalLengths{$c};   
+    return (($r - $l) >= $cannonicalLengths{$c} * $minFractionComplete) ? 1 : 0;
 }
     
 sub finalSoloType {
@@ -163,7 +171,6 @@ sub trySplit {
 
 ### process clusters and join internal or overlapping elements
 my @ALL= ();
-my $complete = 0;
 my $pid = $Ty[0]->feature1->get_tag_values('myid');
 my @cluster = (0); 
 foreach my $i (1..scalar(@Ty)-1) {
@@ -232,7 +239,30 @@ foreach my $i (1..scalar(@Ty)-1) {
      }    
 } ### END processing of clusters
 
+#### print all cluster elements in the way they are
 
+foreach my $c (0..@ALL-1) {
+    my @cluster = @{$ALL[$c]};
+    my $class = '';
+    my $complete = 0;
+    if ( checkType(@cluster) eq 'soloLTR' ) {
+	$class = finalSoloType(@cluster);
+	map {$Ty[$_]->feature1->add_tag_value(Class=>$class);
+	     $Ty[$_]->feature1->add_tag_value(complete=>'No')} @cluster;
+	
+    } elsif ( checkType(@cluster) eq 'internal' ) {
+	$class = join( '/', (grep {$_} (getTyClass(@cluster)))); ## accomodate for divergent classes, not so great but rarely happens
+        $complete = isComplete(@cluster);
+	map {$Ty[$_]->feature1->add_tag_value(Class=> $class . ( (checkType($_) eq 'soloLTR' )? '-LTR' : '-I' ))} @cluster;
+	map {$Ty[$_]->feature1->add_tag_value(complete=> ($complete)?'Yes':'No')} @cluster;
+    }
+    
+    
+    #print STDERR $c;
+    map {$Ty[$_]->feature1->add_tag_value(cluster => $c+1)} @cluster;
+    map {print $Ty[$_]->feature1->gff_string($gffio); print "\n"} @cluster;
+    
+}
 
 
 
@@ -260,6 +290,7 @@ sub next_result_2 {
 	    $self->warn( "RepeatMasker didn't find any repetitive sequences\n");
 	    return ;
 	}
+	next if /^\s*$/;
 	#ignore introductory lines
 	if (/\d+/) {
 	    my @element = split;
