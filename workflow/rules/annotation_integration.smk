@@ -1,7 +1,7 @@
 prefix=config["prefix"]
 
 rule annotation_integration:
-    conda: "envs/bioperl_exonerate.yaml"
+    conda: "../envs/bioperl_exonerate.yaml"
     input:
         genome_assembly="07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa",              
         centromere_gff3="08.Centromere_Annotation/"+prefix+".nuclear_genome.centromere.gff3",

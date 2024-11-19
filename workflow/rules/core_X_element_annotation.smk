@@ -1,12 +1,12 @@
 rule X_element_annotation:
-    conda: "envs/mfannot.yaml"
+    conda: "../envs/mfannot.yaml"
     input: assembly="07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa"
     output:
         gff3="12.Core_X_Element_Annotation/"+config["prefix"]+".nuclear_genome.X_element.gff3",
         fa="12.Core_X_Element_Annotation/"+config["prefix"]+".nuclear_genome.X_element.fa",
         alnfa="12.Core_X_Element_Annotation/"+config["prefix"]+".nuclear_genome.X_element.aln.fa"
 
-    threads: 80
+    threads: 1
 
     shell:
         r"""

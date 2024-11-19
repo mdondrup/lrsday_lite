@@ -1,3 +1,6 @@
 prefix: "CPG_1a"
 chrMT: "MT"
 debug: "no"
+alternative_te_url: "https://doi.org/10.1371/journal.pgen.1008632.s013"
+# alternative_te_url: "https://raw.githubusercontent.com/bergmanlab/yeast-transposons/refs/heads/main/current/split_full_from_genome.fasta" # a reannotated library that can differentiate between different subtypes
+alt_rm_blast_engine: "abblast"

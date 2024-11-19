@@ -1,11 +1,11 @@
 rule TE_annotation:
-    conda: "envs/gene_annotation.yaml"
+    conda: "../envs/gene_annotation.yaml"
     input: assembly="07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa",
            reannotate=".reannotate_setup"
     output:
         gff3="11.TE_Annotation/"+config["prefix"]+".nuclear_genome.TE.gff3",
 
-    threads: 80
+    threads: 60
 
     shell:
         r"""

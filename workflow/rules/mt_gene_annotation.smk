@@ -1,5 +1,5 @@
 rule mt_gene_annotation:
-    conda: "../../envs/mfannot.yaml"
+    conda: "../envs/mfannot.yaml"
     input:
         assembly="07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa"
     output:

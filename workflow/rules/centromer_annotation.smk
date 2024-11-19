@@ -1,7 +1,7 @@
 rule centromere_annotation:
     input: assembly="07.Supervised_Final_Assembly/"+config["prefix"]+".assembly.final.fa"
     output: "08.Centromere_Annotation/"+config["prefix"]+".nuclear_genome.centromere.gff3"
-    conda: "envs/bioperl_exonerate.yaml"
+    conda: "../envs/bioperl_exonerate.yaml"
 
 
     shell:

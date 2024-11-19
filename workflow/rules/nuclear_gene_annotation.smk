@@ -3,13 +3,15 @@
 rule nuclear_gene_annotation:    
     input: assembly="07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa",
            repmsker=".repmasker_setup"
-    output:        
+    output:
+        EVMDIR= directory("09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.EVM.output"), # make sure this is removed on error 
         gff3= "09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.gff3",
         cdsfa= "09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.cds.fa",
          pepfa= "09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.pep.fa",
-         pofffaa="09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.PoFF.faa"
-    conda: "envs/gene_annotation.yaml"
-    threads: 80
+         pofffaa="09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.PoFF.faa",
+         poffgff="09.Nuclear_Gene_Annotation/"+config["prefix"]+".nuclear_genome.PoFF.gff"
+    conda: "../envs/gene_annotation.yaml"
+    threads: 60
     shell:
         r"""
 

@@ -21,7 +21,7 @@ my $class_filter = '';
 my $complete_only = 0;
 my $maxDiv = 30;            # Maximum divergence percentage
 my $maxInternalDist = 100;  # Maximum distance to join fragments
-my $minFractionComplete = 0.9; # Minimum fraction of canonical length
+my $minFractionComplete = 0.95; # Minimum fraction of canonical length
 
 ### Add command-line options
 my $help = 0;    # Help flag
@@ -439,7 +439,7 @@ TyFilter [options] input_file
  Options:   
    --maxDiv                 Set maximum sequence divergence (default: 20)
    --maxInternalDist        Set internal distance (default: 100)
-   --minFractionComplete    Set fraction to call a cluster complete (default: 0.9)
+   --minFractionComplete    Set fraction to call a cluster complete (default: 0.95)
    --debug=<level>          Set debug level (default: 1)
    --[no]_bed                Enable BED file output (default: enabled)
    --counts                 Enable counts file output (default: enabled)
@@ -466,7 +466,7 @@ Set maximum internal distance for soloLTR elements to be joined with incomplete 
 
 =item B<--minFractionComplete>
 
-Set minimum fraction of canonical Ty-element length to classify as complete(float). Filters on RepeatMasker output. [0.9]
+Set minimum fraction of canonical Ty-element length to classify as complete(float). Filters on RepeatMasker output. [0.95]
 
 =item B<--debug>
 

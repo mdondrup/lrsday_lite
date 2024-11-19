@@ -1,12 +1,12 @@
 rule Y_element_annotation:
-    conda: "envs/blat.yaml"
+    conda: "../envs/blat.yaml"
     input: assembly="07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa"
     output:
         gff3="13.Y_Prime_Element_Annotation/"+config["prefix"]+".nuclear_genome.Y_prime_element.gff3",
         fa="13.Y_Prime_Element_Annotation/"+config["prefix"]+".nuclear_genome.Y_prime_element.fa",
         alnfa="13.Y_Prime_Element_Annotation/"+config["prefix"]+".nuclear_genome.Y_prime_element.aln.fa"
 
-    threads: 80
+    threads: 1
 
     shell:
         r"""
