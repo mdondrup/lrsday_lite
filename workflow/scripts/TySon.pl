@@ -8,10 +8,20 @@ use Carp qw !croak carp confess!;
 use Array::Utils qw(:all);
 use Bio::Tools::RepeatMasker;
 use Data::Dumper;
-my $debug = 1;
 
-my $gffio = Bio::Tools::GFF->new(-gff_version => 3);
+######### These  are the commandline parameters
+my $debug = 1;
+my $bed = 1;
+my $counts = 1; ## print counts to a separate file
+my $prefix = 'TySon'; ## prefix to be used for the names
+my $class_filter = '';
+my $complete_only = 0;
+###############################################################
+######### Global variables
+
+my $gffio = Bio::Tools::GFF->new(-gff_version => 3); ## gff version to use
 my @Ty = ();
+my %counts = ();
 
 my $maxDiv = 20;
 my $maxInternalDist = 100;
@@ -82,12 +92,20 @@ sub getTyClass {
     return ();
 }
 
+sub getScoreSum {
+    # calculate the combined score for the cluster
+    my $score = 0;
+    map {$score += $_->score} @{Ty[@_]};
+    return $score;
+}
+
+
 sub isComplete {
     
     @_ = grep {defined $_} @_; 
     return 0 unless @_ > 2;
     ## check if both ends are LTRs;
-    return 0 unless (checkType($_[0]) eq 'soloLTR' && checkType($_[@_-1]) eq 'soloLTR' );
+    return 0 unless (checkType($_[0]) eq 'soloLTR' && checkType($_[-1]) eq 'soloLTR' );
     my @ar = grep {$_} getTyClass(@_);
     my $c = join '/', @ar;
     #print STDERR "----$c";
@@ -115,7 +133,7 @@ sub extendLTR {
     ## There is no sanity check if the other internal element(s)
     ## are properly arranged at the moment
     my $l = $_[0]; 
-    my $r = $_[scalar(@_)-1]; ## The same if only one element
+    my $r = $_[-1]; ## The same if only one element
     confess "$r isn't defined " unless defined $r;
     ## we only need to look one element to the left and right
     if ($l > 0 && checkType(($l)) ne 'soloLTR' ) {
@@ -239,47 +257,78 @@ foreach my $i (1..scalar(@Ty)-1) {
      }    
 } ### END processing of clusters
 
-#### print all cluster elements in the way they are
+#### print all cluster elements in the way they are after modification
 
 foreach my $c (0..@ALL-1) {
+   
     my @cluster = @{$ALL[$c]};
     my $class = '';
     my $complete = 0;
+    my $name = $prefix.'.';
     if ( checkType(@cluster) eq 'soloLTR' ) {
 	$class = finalSoloType(@cluster);
+	next if $complete_only;
+	next if  ($class_filter && $class !~ /^$class_filter/);
 	map {$Ty[$_]->feature1->add_tag_value(Class=>$class);
 	     $Ty[$_]->feature1->add_tag_value(complete=>'No')} @cluster;
-	
+	$name .= $class."_".($c+1);
+	$counts{soloLTR}++;
+	$counts{$class}++;
     } elsif ( checkType(@cluster) eq 'internal' ) {
 	$class = join( '/', (grep {$_} (getTyClass(@cluster)))); ## accomodate for divergent classes, not so great but rarely happens
         $complete = isComplete(@cluster);
 	map {$Ty[$_]->feature1->add_tag_value(Class=> $class . ( (checkType($_) eq 'soloLTR' )? '-LTR' : '-I' ))} @cluster;
 	map {$Ty[$_]->feature1->add_tag_value(complete=> ($complete)?'Yes':'No')} @cluster;
+	$name .=  $class."_".($c+1).(($complete) ? '' : '_truncated');
+	$counts{total_truncated}++ && 	$counts{$class."_truncated"}++ if not $complete;
+	$counts{total_complete}++  && 	$counts{$class."_complete"}++  if $complete;
+    } else {
+	confess "unknown cluster type: " .  checkType(@cluster);
     }
+    next if ($class_filter && $class ne $class_filter);
+    next if ($complete_only && ! $complete);
+   
+    
     
     
     #print STDERR $c;
     map {$Ty[$_]->feature1->add_tag_value(cluster => $c+1)} @cluster;
-    map {print $Ty[$_]->feature1->gff_string($gffio); print "\n"} @cluster;
-    
+    map {$Ty[$_]->feature1->add_tag_value(Name => $name)} @cluster;
+    if ($bed) {
+	### write a bed file with genome coordinates for the full matches
+	my $l = $Ty[$cluster[0]];
+	my $r = $Ty[$cluster[-1]];
+	print join "\t", ($l->seq_id(),
+			  $l->start,
+			  $r->end,
+			   $name,
+			  getScoreSum(@cluster),
+			  ($r->strand > 0)? '+' : '-'
+	    );
+	print "\n";		     
+	
+    } else {
+	map {print $Ty[$_]->feature1->gff_string($gffio); print "\n"} @cluster;
+    }
+}
+
+if ($counts) {
+    *COUNTS = *STDOUT; # default is to also print ot STDOUT if no prefix specified
+    open COUNTS, ">$prefix.counts" || die "couldn't open counts file: $!" if ($prefix); 
+    my @k = sort(keys %counts);
+    print COUNTS (join "\t", @k ),"\n";
+    print COUNTS (join "\t", @counts{@k}), "\n";
+    #print Dumper [\%counts];
 }
 
 
 
-
-
-
-
-
-
-
-
-
+##########################################################################################################
 
 package Bio::Tools::RepeatMasker;
 no warnings qw(redefine);
 
-### The original function doesn't read 
+### The original function doesn't read the cluster ids assigned by RM
 
 sub next_result_2 {
     my ($self) = @_;
