@@ -430,7 +430,7 @@ __END__
 
 =head1 NAME
 
-TyFilter - Filter, join, and re-annotate Ty elements.
+TySon.pl - Filter, join, and re-annotate Ty elements.
 
 =head1 SYNOPSIS
 
@@ -502,11 +502,11 @@ Display a brief help message and exit.
 
 Run with default options:
 
-  perl TyFilter.pl input_file
+  perl TySon.pl input_file
 
 Run with custom prefix and BED file disabled:
 
-  perl TyFilter.pl --prefix="CustomPrefix" --maxDiv 25 --maxInternalDist 50 --minFractionComplete 0.8 --debug 1
+  perl TySon.pl --prefix="CustomPrefix" --maxDiv 25 --maxInternalDist 50 --minFractionComplete 0.8 --debug 1
 
 
 =head1 AUTHOR
