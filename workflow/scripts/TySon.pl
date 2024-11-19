@@ -441,7 +441,7 @@ TyFilter [options] input_file
    --maxInternalDist        Set internal distance (default: 100)
    --minFractionComplete    Set fraction to call a cluster complete (default: 0.9)
    --debug=<level>          Set debug level (default: 1)
-   --[no]_bed               Enable BED file output (default: enabled)
+   --[no]_bed                Enable BED file output (default: enabled)
    --counts                 Enable counts file output (default: enabled)
    --prefix=<string>        Prefix for names (default: "TySon")
    --class_filter=<regex>   Filter for a specific class of Ty elements
