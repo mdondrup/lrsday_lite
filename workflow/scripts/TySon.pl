@@ -1,23 +1,50 @@
 #!/usr/bin/env perl
 
-### Script for filtering, joining and re-annotating Ty elements
+
+## Script for filtering, joining, and re-annotating Ty elements
 
 use strict;
 use warnings;
-use Carp qw !croak carp confess!;
+use Carp qw(croak carp confess);
+use Getopt::Long;
+use Pod::Usage;
 use Array::Utils qw(:all);
 use Bio::Tools::RepeatMasker;
 use Data::Dumper;
 
-######### These  are the commandline parameters
+### Default parameters
 my $debug = 1;
 my $bed = 1;
-my $counts = 1; ## print counts to a separate file
-my $prefix = 'TySon'; ## prefix to be used for the names
+my $counts = 1;
+my $prefix = 'TySon';
 my $class_filter = '';
 my $complete_only = 0;
+my $maxDiv = 30;            # Maximum divergence percentage
+my $maxInternalDist = 100;  # Maximum distance to join fragments
+my $minFractionComplete = 0.9; # Minimum fraction of canonical length
+
+### Add command-line options
+my $help = 0;    # Help flag
+GetOptions(
+    'maxDiv=f'             => \$maxDiv,              # Max divergence (float)
+    'maxInternalDist=i'    => \$maxInternalDist,      # Max internal distance (integer)
+    'minFractionComplete=f'=> \$minFractionComplete,  # Min fraction complete (float)
+    'debug=i'        => \$debug,         # Debug level
+    'bed!'           => \$bed,          # Enable/disable BED output
+    'counts!'        => \$counts,       # Enable/disable counts output
+    'prefix=s'       => \$prefix,       # Prefix for names
+    'class_filter=s' => \$class_filter, # Filter for specific class
+    'complete_only!' => \$complete_only, # Output only complete clusters
+    'help|h'         => \$help,         # Help flag
+) or pod2usage(2);
+
+pod2usage(1) if $help;
+
+
+
+
 ###############################################################
-######### Global variables
+################## Global variables ###########################
 
 my $gffio = Bio::Tools::GFF->new(-gff_version => 3); ## gff version to use
 my @Ty = ();
@@ -400,3 +427,90 @@ sub next_result_2 {
 
 
 __END__
+
+=head1 NAME
+
+TyFilter - Filter, join, and re-annotate Ty elements.
+
+=head1 SYNOPSIS
+
+TyFilter [options] input_file
+
+ Options:   
+   --maxDiv                 Set maximum sequence divergence (default: 20)
+   --maxInternalDist        Set internal distance (default: 100)
+   --minFractionComplete    Set fraction to call a cluster complete (default: 0.9)
+   --debug=<level>          Set debug level (default: 1)
+   --[no]_bed               Enable BED file output (default: enabled)
+   --counts                 Enable counts file output (default: enabled)
+   --prefix=<string>        Prefix for names (default: "TySon")
+   --class_filter=<regex>   Filter for a specific class of Ty elements
+   --complete_only          Output only complete clusters
+   --help                   Display this help and exit
+
+=head1 DESCRIPTION
+
+This script processes RepeatMasker output to filter, join, and re-annotate Ty elements, a type of retrotransposon commonly studied in yeast genomes, based on various criteria such as sequence divergence and canonical length.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--maxDiv>
+
+Set maximum divergence (float). Filters on RepeatMasker output. [20]
+
+=item B<--maxInternalDist>
+
+Set maximum internal distance for soloLTR elements to be joined with incomplete clusters (integer). [100]
+
+=item B<--minFractionComplete>
+
+Set minimum fraction of canonical Ty-element length to classify as complete(float). Filters on RepeatMasker output. [0.9]
+
+=item B<--debug>
+
+Set the debug level (1,2). Higher values provide more verbose output.
+
+=item B<--bed, --no_bed>
+
+Enable or disable BED file output. Enabled by default. GFF3 Otherwise
+
+=item B<--counts>, B<--no-counts>
+
+Enable or disable counts file output. Enabled by default.
+
+=item B<--prefix>
+
+Specify the prefix to use for cluster names. Default is "TySon".
+
+=item B<--class_filter>
+
+Provide a regex to filter for specific Ty element classes.
+
+=item B<--complete_only>
+
+If specified, outputs only complete clusters. By default, both complete and incomplete clusters are output.
+
+=item B<--help>
+
+Display a brief help message and exit.
+
+=back
+
+=head1 EXAMPLES
+
+Run with default options:
+
+  perl TyFilter.pl input_file
+
+Run with custom prefix and BED file disabled:
+
+  perl TyFilter.pl --prefix="CustomPrefix" --maxDiv 25 --maxInternalDist 50 --minFractionComplete 0.8 --debug 1
+
+
+=head1 AUTHOR
+
+Your Name <michael.dondrup <at> uib.no>
+
+=cut
