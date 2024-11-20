@@ -11,6 +11,7 @@ include: "rules/centromer_annotation.smk"
 include: "rules/nuclear_gene_annotation.smk"
 include: "rules/mt_gene_annotation.smk"
 include: "rules/TE_annotation.smk"
+include: "rules/Alternative_TE_annotation.smk"
 include: "rules/core_X_element_annotation.smk"
 include: "rules/Y_prime_element_annotation.smk"
 include: "rules/gene_orthology_identification.smk"
@@ -95,16 +96,17 @@ rule clone_LRSDAY:
         cd data/
         gunzip *.gz
         """
-        
+
 rule repeat_masker_setup:
     conda: "envs/gene_annotation.yaml" # need to set up the environment already
     output: [directory("RMRB"),".repmasker_setup"]
     params: REPBASE_VERSION="20181026",
             REPBASE_DOWNLOAD_URL="https://github.com/yjx1217/RMRB.git"
+    threads: sys.maxsize # Cannot run in parallel
+    priority: sys.maxsize # Do this first
+    message: "Setting up RepeatMasker, during setup, configure RM-Blast"          
     shell:
         r"""
-
-
         WCD=$(pwd)
         git clone {params.REPBASE_DOWNLOAD_URL}
 
@@ -117,6 +119,33 @@ rule repeat_masker_setup:
         touch .repmasker_setup
         
         """
+
+### setup another engine        
+rule repeat_masker_alt_setup:
+    conda: "envs/gene_annotation.yaml"
+    input:
+        ".repmasker_setup"
+    output:
+        ".wublast_rm_setup"
+    message:
+        r"""
+        Configuring RepMasker for WU-Blast/AB-Blast.
+        Due to licensing, the pipeline cannot install AB-Blast for you.
+        Obtain a license, download and install AB-Blast in your PATH.
+        See https://blast.advbiocomp.com/licensing/ for details.
+
+        During RepeatMasker setup, choose ABblast. 
+        """
+    shell:
+        r"""
+        WCD=$(pwd)
+        cd $CONDA_PREFIX/share/RepeatMasker/
+        perl ./configure
+        cd $WCD
+        touch .wublast_rm_setup
+        """
+
+        
 
 rule reannotate_setup:
     conda: "envs/gene_annotation.yaml" # need to set up the environment already
@@ -182,7 +211,7 @@ download () {{
   url=$1
   download_location=$2
   echo "Downloading $url to $download_location"
-  wget -c --no-check-certificate $url -O $download_location
+  wget --timeout=60 --continue --no-check-certificate -q --show-progress $url -O $download_location
 }}
 
         
@@ -191,7 +220,8 @@ download () {{
 ERPIN_VERSION="5.5.4" # 
 #ERPIN_DOWNLOAD_URL="http://rna.igmors.u-psud.fr/download/Erpin/erpin${{ERPIN_VERSION}}.serv.tar.gz"
 ERPIN_DOWNLOAD_URL="http://rssf.i2bc.paris-saclay.fr/download/Erpin/erpin${{ERPIN_VERSION}}.serv.tar.gz"
-        
+
+
 echo ""
 echo " Installing erpin ..."
     cd $build_dir    
