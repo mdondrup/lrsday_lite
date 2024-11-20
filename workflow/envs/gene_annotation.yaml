@@ -150,6 +150,7 @@ dependencies:
 - perl-appconfig=1.71=pl526_1
 - perl-archive-tar=2.32=pl526_0
 - perl-array-compare=3.0.1=pl526_1
+- perl-array-utils=0.5=pl526_2
 - perl-attribute-handlers=0.96=pl526_2
 - perl-autoloader=5.74=pl526_2
 - perl-base=2.23=pl526_1
