@@ -24,8 +24,8 @@ if (db_url):
     rule alt_repmasker:
         conda: "../envs/gene_annotation.yaml"
         input:
-            rm = ".repmasker_setup",
-            wu = ".wublast_rm_setup"  if (engine == "wublast") else [],
+            #rm = ".repmasker_setup",
+            #wu = ".wublast_rm_setup"  if (engine == "wublast") else [],
             lib = "11A.Alternative_TE_Annotation/TY_DB.fna",
             asm = "07.Supervised_Final_Assembly/"+ config["prefix"] +".assembly.final.fa"
         output:

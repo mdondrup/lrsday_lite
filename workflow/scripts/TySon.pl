@@ -44,18 +44,19 @@ pod2usage(1) if $help;
 
 
 ###############################################################
-################## Global variables ###########################
+#################### Global variables #########################
 
 my $gffio = Bio::Tools::GFF->new(-gff_version => 3); ## gff version to use
 my @Ty = ();
-my %counts = ();
+
 
 my $maxDiv = 20;
 my $maxInternalDist = 100;
 ## Maximum distance between dissociated Ty fragments to be  joined
-my $minFractionComplete = 0.9; ## Minimum fraction of canonical length to be classified a s complete
+my $minFractionComplete = 0.9; ## Minimum fraction of canonical length to be classified as complete
 
-my %cannonicalLengths = ( 'TY1' => 5924,
+my %cannonicalLengths = ( 
+			  'TY1' => 5924,
 			  'TY2' => 5959,
 			  'TY3' => 5351,
 			  'TY3_1p' => 5360,
@@ -63,6 +64,34 @@ my %cannonicalLengths = ( 'TY1' => 5924,
 			  'TY5' => 5349,
 			  'TSU4' => 5997
 			);  
+
+my @headers = qw (
+	TSU4-soloLTR
+	TSU4_complete
+	TSU4_truncated
+	TY1/2-soloLTR	
+	TY1_complete	
+	TY1_truncated	
+	TY2_complete	
+	TY2_truncated	
+	TY3-soloLTR	
+	TY3_1p-soloLTR
+	TY3_1p_complete
+	TY3_1p_truncated	
+	TY3_complete	
+	TY3_truncated	
+	TY4-soloLTR	
+	TY4_complete	
+	TY4_truncated	
+	TY5-soloLTR	
+	TY5_truncated
+	TY5_complete
+	soloLTR	
+	total_complete	
+	total_truncated	);
+
+# initialize headers
+my %counts = map {($_ => 0)} @headers;
 
 
 my $parser = Bio::Tools::RepeatMasker->new(-file => $ARGV[0]);
@@ -307,15 +336,20 @@ foreach my $c (0..@ALL-1) {
 	map {$Ty[$_]->feature1->add_tag_value(Class=> $class . ( (checkType($_) eq 'soloLTR' )? '-LTR' : '-I' ))} @cluster;
 	map {$Ty[$_]->feature1->add_tag_value(complete=> ($complete)?'Yes':'No')} @cluster;
 	$name .=  $class."_".($c+1).(($complete) ? '' : '_truncated');
-	$counts{total_truncated}++ && 	$counts{$class."_truncated"}++ if not $complete;
-	$counts{total_complete}++  && 	$counts{$class."_complete"}++  if $complete;
-    } else {
-	confess "unknown cluster type: " .  checkType(@cluster);
+	
+		if ($complete) {
+			$counts{total_complete}++; 	
+			$counts{$class."_complete"}++;
+    	} else {
+			$counts{total_truncated}++;
+			$counts{$class."_truncated"}++;
+		}
+	 } else {
+		confess "unknown cluster type: " .  checkType(@cluster);
     }
     next if ($class_filter && $class ne $class_filter);
     next if ($complete_only && ! $complete);
    
-    
     
     
     #print STDERR $c;
@@ -340,11 +374,11 @@ foreach my $c (0..@ALL-1) {
 }
 
 if ($counts) {
-    *COUNTS = *STDOUT; # default is to also print ot STDOUT if no prefix specified
+    *COUNTS = *STDOUT; # default is to also print to STDOUT if no prefix specified
     open COUNTS, ">$prefix.counts" || die "couldn't open counts file: $!" if ($prefix); 
-    my @k = sort(keys %counts);
-    print COUNTS (join "\t", @k ),"\n";
-    print COUNTS (join "\t", @counts{@k}), "\n";
+    
+    print COUNTS (join "\t", ('Strain', @headers) ),"\n";
+    print COUNTS (join "\t", ($prefix, @counts{@headers})), "\n";
     #print Dumper [\%counts];
 }
 
